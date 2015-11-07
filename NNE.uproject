@@ -1,0 +1,13 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "{2CE2980B-48DB-7149-17A9-419A7ADD7D29}",
+	"Category": "",
+	"Description": "",
+	"Modules": [
+		{
+			"Name": "NNE",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}
