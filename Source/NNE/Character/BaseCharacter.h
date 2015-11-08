@@ -20,19 +20,19 @@ public:
 	UPROPERTY(Category = Mesh, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UStaticMeshComponent* ShipMeshComponent;
 
-	UPROPERTY(Replicated, Cathegory = "Health")
+	UPROPERTY(Replicated, BlueprintReadWrite, Category = "Health")
 	float HealthMax = 100.0f;
 
-	UPROPERTY(Replicated, Category = "Health")
+	UPROPERTY(Replicated, BlueprintReadWrite, Category = "Health")
 	float HealthCurrent = 100.0f;
 
-	UPROPERTY(Category = "Movement") // might be replicated as well
+	UPROPERTY(/*Replicated,*/ BlueprintReadWrite, Category = "Movement") // might be replicated as well
 	float MoveSpeed = 1000.0f;
 
-	UPROPERTY(Replicated, Category = "Weapon")
+	UPROPERTY(Replicated, BlueprintReadWrite, Category = "Weapon")
 	TScriptInterface<IWieldable> MainHandItem;
 
-	UPROPERTY(Replicated, Category = "Weapon")
+	UPROPERTY(Replicated, BlueprintReadWrite, Category = "Weapon")
 	TScriptInterface<IWieldable> OffHandItem;
 
 //==============================================================================
@@ -40,21 +40,21 @@ public:
 //==============================================================================
 public:
 
-	UFUNCTION(reliable, Server, WithValidation, Category = "Action")
+	UFUNCTION(reliable, Server, WithValidation, Blueprintable, Category = "Action")
 	void UseMain();
 
-	UFUNCTION(reliable, Server, WithValidation, Category = "Action")
+	UFUNCTION(reliable, Server, WithValidation, Blueprintable, Category = "Action")
 	void UseSecondary();
 
-	UFUNCTION(reliable, Server, WithValidation, Category = "Action")
+	UFUNCTION(reliable, Server, WithValidation, Blueprintable, Category = "Action")
 	void UseAction();
 
-	UFUNCTION(Category = "Health")
+	UFUNCTION(Blueprintable, Category = "Health")
 	float GetCurrentHealth();
 
 	//Server validates health can be added, up to max defined by Health
 	//Then broadcasts the current health to all clients with ClientUpdateCurrentHealth()
-	UFUNCTION(reliable, Server, WithValidation, Category = "Health")
+	UFUNCTION(reliable, Server, WithValidation, Blueprintable, Category = "Health")
 	void Heal(float HealthAmount);
 
 	//UFUNCTION(reliable, NetMulticast)
@@ -66,6 +66,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void Die();
+
+	/* Flag to control firing  */
+	uint32 bCanFire : 1;
+
+	/** Handle for efficient management of ShotTimerExpired timer */
+	FTimerHandle TimerHandle_ShotTimerExpired;
 
 	/** Returns ShipMeshComponent subobject (not sure here)**/
 	FORCEINLINE class UStaticMeshComponent* GetShipMeshComponent() const { return ShipMeshComponent; }
