@@ -36,7 +36,7 @@ void ADefaultPlayerCameraManager::UpdateViewTarget(FTViewTarget & OutVT, float D
 	//END ORIGINAL UPDATEVIEW TARGET CODE
 
 	//If type is a base player controller and has a camera
-	if (dynamic_cast<ABasePlayerController*>(GetOwningPlayerController()) && ((ABasePlayerController*)GetOwningPlayerController())->GetCamera() != NULL)
+	if (dynamic_cast<ABasePlayerController*>(GetOwningPlayerController()) && ((ABasePlayerController*)GetOwningPlayerController())->GetCameraComponent() != NULL)
 	{
 		ABasePlayerController* playerController = (ABasePlayerController*)GetOwningPlayerController();
 		if (playerController->GetPawn())
@@ -49,7 +49,7 @@ void ADefaultPlayerCameraManager::UpdateViewTarget(FTViewTarget & OutVT, float D
 			}
 		}
 
-		UCameraComponent* camera = playerController->GetCamera();
+		UCameraComponent* camera = playerController->GetCameraComponent();
 
 		//Set POV variables
 		OutVT.POV.Location = camera->GetComponentLocation();

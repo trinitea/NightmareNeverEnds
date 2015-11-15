@@ -1,13 +1,35 @@
 
 #include "NNE.h"
+#include "NNEProjectile.h"
 #include "Net/UnrealNetwork.h"
 #include "BaseCharacter.h"
 
 ABaseCharacter::ABaseCharacter() : Super()
 {
 	bReplicates = true;
+	GetCharacterMovement()->bOrientRotationToMovement = false; // orientation is binded to the thumbstick rotation.
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> ShipMesh(TEXT("/Game/TwinStick/Meshes/TwinStickUFO.TwinStickUFO"));
+	// Create the mesh component
+	ShipMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShipMesh"));
+	RootComponent = ShipMeshComponent;
+
+	ShipMeshComponent->SetCollisionProfileName(UCollisionProfile::Pawn_ProfileName);
+	ShipMeshComponent->SetStaticMesh(ShipMesh.Object);
+
+	static ConstructorHelpers::FObjectFinder<UBlueprint> BulletBlueprint(TEXT("Blueprint'/Game/Blueprints/NNEProjectileBP.NNEProjectileBP'"));
+	if (BulletBlueprint.Object){
+		ProjectileBP = (UClass*)BulletBlueprint.Object->GeneratedClass;
+	} else{
+		UE_LOG(LogTemp, Error, TEXT("could not find garbage BP"));
+	}
+
+	GunOffset = FVector(90.f, 0.f, 0.f);
+	FireRate = 0.1f;
+	bCanFire = true;
 }
 
+/*
 void ABaseCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -15,23 +37,8 @@ void ABaseCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & Ou
 	DOREPLIFETIME(ABaseCharacter, HealthCurrent);
 	DOREPLIFETIME(ABaseCharacter, HealthMax);
 }
-
-void ABaseCharacter::Die(){
-
-	if (Controller && Role == ROLE_Authority) {
-		/*
-		AMainGameMode* mainGM = dynamic_cast<AMainGameMode*>(GetWorld()->GetAuthGameMode());
-
-		if (mainGM)
-		{
-			mainGM->ACharacterHasDied(Controller);
-		}
-		*/
-	}
-
-	//Destroy();
-}
-
+*/
+/*
 float ABaseCharacter::GetCurrentHealth(){
 	return HealthCurrent;
 }
@@ -53,24 +60,61 @@ void ABaseCharacter::Heal_Implementation(float HealAmount){
 		HealthCurrent = HealthMax;
 	}
 }
-
+*/
 
 bool ABaseCharacter::UseMain_Validate(){
-	return true; // check if you have main weapon
+	return bCanFire; // check if you have main weapon
 }
 
 void ABaseCharacter::UseMain_Implementation(){
+
+	// If we it's ok to fire again
+	if (bCanFire == true)
+	{
+		const FRotator FireRotation = FRotator(0.f, 0.f, 0.f);// RootComponent->Rotation();
+		// Spawn projectile at an offset from this pawn
+		const FVector SpawnLocation = GetActorLocation() + FireRotation.RotateVector(GunOffset);
+
+		UWorld* const World = GetWorld();
+		if (World != NULL)
+		{
+			// spawn the projectile
+			World->SpawnActor<ANNEProjectile>(ProjectileBP, SpawnLocation, FireRotation);
+		}
+
+		bCanFire = false;
+		
+		World->GetTimerManager().SetTimer(TimerHandle_ShotTimerExpired, this, &ABaseCharacter::ShotTimerExpired, FireRate); // Cool shit !!
+
+		/*
+		// try and play the sound if specified
+		if (FireSound != nullptr)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
+		}
+
+		bCanFire = false;
+		*/
+	}
+
+
+
 	return;
 }
 
+void ABaseCharacter::ShotTimerExpired()
+{
+	bCanFire = true;
+}
+
 bool ABaseCharacter::UseSecondary_Validate(){
-	return true; // check if you have 2 weapons or 1 weapon with secondary fire
+	return false; // check if you have 2 weapons or 1 weapon with secondary fire
 }
 
 void ABaseCharacter::UseSecondary_Implementation(){
 	return;
 }
-
+/*
 bool ABaseCharacter::UseAction_Validate(){
 	return true;
 }
@@ -78,21 +122,16 @@ bool ABaseCharacter::UseAction_Validate(){
 void ABaseCharacter::UseAction_Implementation(){
 	return;
 }
-
+*/
 //==============================================================================
 // SHOULD BE CORRECTED 
 //==============================================================================
 
-// Non replicated for now
-ABaseCharacter::Move(){
-	const FVector MoveDirection = FVector(ForwardValue, RightValue, 0.f).GetClampedToMaxSize(1.0f);
+bool ABaseCharacter::Move_Validate(float ForwardValue, float  RightValue, float DeltaSeconds, FRotator DirectionPerspective){
+	return Role == ROLE_Authority;
 }
 
-void ABaseCharacter::Tick(float DeltaSeconds)
-{
-	// Find movement direction
-	const float ForwardValue = GetInputAxisValue(MoveForwardBinding);
-	const float RightValue = GetInputAxisValue(MoveRightBinding);
+void ABaseCharacter::Move_Implementation(float ForwardValue, float  RightValue, float DeltaSeconds, FRotator DirectionPerspective){
 
 	// Clamp max size so that (X=1, Y=1) doesn't cause faster movement in diagonal directions
 	const FVector MoveDirection = FVector(ForwardValue, RightValue, 0.f).GetClampedToMaxSize(1.0f);
@@ -103,56 +142,25 @@ void ABaseCharacter::Tick(float DeltaSeconds)
 	// If non-zero size, move this actor
 	if (Movement.SizeSquared() > 0.0f)
 	{
-		const FRotator NewRotation = Movement.Rotation();
+		//const FRotator NewRotation = Movement.Rotation();
 		FHitResult Hit(1.f);
-		RootComponent->MoveComponent(Movement, NewRotation, true, &Hit);
-
-		if (Hit.IsValidBlockingHit())
-		{
-			const FVector Normal2D = Hit.Normal.GetSafeNormal2D();
-			const FVector Deflection = FVector::VectorPlaneProject(Movement, Normal2D) * (1.f - Hit.Time);
-			RootComponent->MoveComponent(Deflection, NewRotation, true);
-		}
+		RootComponent->MoveComponent(Movement, DirectionPerspective, true, &Hit);
 	}
-
-	// Create fire direction vector
-	const float FireForwardValue = GetInputAxisValue(FireForwardBinding);
-	const float FireRightValue = GetInputAxisValue(FireRightBinding);
-	const FVector FireDirection = FVector(FireForwardValue, FireRightValue, 0.f);
-
-	// Try and fire a shot
-	FireShot(FireDirection);
+	
+}
+bool ABaseCharacter::Aim_Validate(float ActionForwardValue, float ActionRightValue, const FRotator DirectionPerspective){
+	return Role == ROLE_Authority;
 }
 
-void ABaseCharacter::FireShot(FVector FireDirection)
-{
-	// If we it's ok to fire again
-	if (bCanFire == true)
-	{
-		// If we are pressing fire stick in a direction
-		if (FireDirection.SizeSquared() > 0.0f)
-		{
-			const FRotator FireRotation = FireDirection.Rotation();
-			// Spawn projectile at an offset from this pawn
-			const FVector SpawnLocation = GetActorLocation() + FireRotation.RotateVector(GunOffset);
+void ABaseCharacter::Aim_Implementation(float ActionForwardValue, float ActionRightValue, const FRotator DirectionPerspective){
+	
+	float treshold = 0.1f;
 
-			UWorld* const World = GetWorld();
-			if (World != NULL)
-			{
-				// spawn the projectile
-				World->SpawnActor<ANNEProjectile>(SpawnLocation, FireRotation);
-			}
+	// early return
+	if (ActionForwardValue < treshold && ActionForwardValue > -treshold && 
+		ActionRightValue < treshold && ActionRightValue > -treshold) return;
 
-			bCanFire = false;
-			World->GetTimerManager().SetTimer(TimerHandle_ShotTimerExpired, this, &ANNEPawn::ShotTimerExpired, FireRate);
-
-			// try and play the sound if specified
-			if (FireSound != nullptr)
-			{
-				UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
-			}
-
-			bCanFire = false;
-		}
-	}
+	FRotator Rot = FRotationMatrix::MakeFromX(FVector(ActionForwardValue, ActionRightValue, 0)).Rotator();
+	RootComponent->SetRelativeRotation(Rot);
+	
 }

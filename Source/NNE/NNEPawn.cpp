@@ -7,8 +7,8 @@
 
 const FName ANNEPawn::MoveForwardBinding("MoveForward");
 const FName ANNEPawn::MoveRightBinding("MoveRight");
-const FName ANNEPawn::FireForwardBinding("FireForward");
-const FName ANNEPawn::FireRightBinding("FireRight");
+const FName ANNEPawn::FireForwardBinding("ActionForward");
+const FName ANNEPawn::FireRightBinding("ActionForw");
 
 ANNEPawn::ANNEPawn()
 {	
@@ -28,7 +28,7 @@ ANNEPawn::ANNEPawn()
 	CameraBoom->AttachTo(RootComponent);
 	CameraBoom->bAbsoluteRotation = true; // Don't want arm to rotate when ship does
 	CameraBoom->TargetArmLength = 1200.f;
-	CameraBoom->RelativeRotation = FRotator(-80.f, 0.f, 0.f);
+	CameraBoom->RelativeRotation = FRotator(-40.f, 0.f, 0.f);
 	CameraBoom->bDoCollisionTest = false; // Don't want to pull camera in when it collides with level
 
 	// Create a camera...

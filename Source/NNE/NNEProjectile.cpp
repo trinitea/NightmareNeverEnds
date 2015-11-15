@@ -28,6 +28,9 @@ ANNEProjectile::ANNEProjectile()
 
 	// Die after 3 seconds by default
 	InitialLifeSpan = 3.0f;
+
+	// reliable
+	bNetLoadOnClient = true;
 }
 
 void ANNEProjectile::OnHit(AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
